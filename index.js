@@ -2,7 +2,15 @@ const openai = require('openai');
 const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
+const admin = require('firebase-admin');
+const serviceAccount = require("./serviceAccountKey.json")
 dotenv.config();
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+})
+
+let db = admin.firestore();
 
 const openaiConfig = new openai.OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -28,6 +36,20 @@ app.get('/gpt', async (req, res) => {
     console.log(completion);
     res.send(completion.choices[0].message);
 
+})
+
+app.get('/db', async(req, res) => {
+    var wordSet = "hello"
+    var description = "hello all!"
+    product = await db.collection("WordSummary").get();
+    var items = new Map([])
+    product.forEach((doc) => { items.set(doc.data().WordSet, doc.data().Description) })
+    if(!items.has(wordSet)) {
+        await db.collection("WordSummary").doc().set({WordSet: wordSet, Description: description});
+        items.set(wordSet, description);
+    }
+    console.log(items);
+    res.send(items);
 })
 
 app.listen(port, () => {
