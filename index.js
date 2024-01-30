@@ -35,21 +35,36 @@ app.get('/gpt', async (req, res) => {
     })
     console.log(completion);
     res.send(completion.choices[0].message);
-
 })
 
 app.get('/db', async(req, res) => {
-    var wordSet = "hello"
+    var wordSet = "i sleep now"
     var description = "hello all!"
     product = await db.collection("WordSummary").get();
     var items = new Map([])
     product.forEach((doc) => { items.set(doc.data().WordSet, doc.data().Description) })
     if(!items.has(wordSet)) {
+        const words = wordSet;
+        const messages = "Make a meaningful sentence out of the phrases: " + words;
+        console.log(messages);
+        const completion = await openaiConfig.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {"role": "user", "content": messages}
+            ],
+            max_tokens: 200
+        })
+        console.log(completion);
+        description = completion.choices[0].message.content
         await db.collection("WordSummary").doc().set({WordSet: wordSet, Description: description});
         items.set(wordSet, description);
     }
+    else {
+        description = items.get(wordSet);
+    }
+    items.set(wordSet, description);
     console.log(items);
-    res.send(items);
+    res.send(description);
 })
 
 app.listen(port, () => {
