@@ -2,6 +2,7 @@ from flask import Flask
 import cv2
 import mediapipe as mp
 import numpy as np
+import time
 from tensorflow.keras.models import load_model
 
 app = Flask(__name__)
@@ -82,11 +83,15 @@ holistic = mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confi
 num_keypoints = 258  # Update the number of keypoints
 # Number of frames to wait before displaying the prediction
 delay_frames = 5  # Adjust this value as needed
+final = []
 
 def fun():
 
     cap = cv2.VideoCapture(0) # 0 for webcam, 'path' for video file
     frame_count = 0
+
+    word_counts = {}
+    cooldown_timer = time.time()
 
     prid_main = []
 
@@ -100,6 +105,8 @@ def fun():
         # Read feed
         ret, frame = cap.read()
         # frame = cv2.flip(frame,1)
+        if not ret:
+            break
 
         # Make detections
         image, results = mediapipe_detection(frame, holistic)
@@ -126,11 +133,23 @@ def fun():
                     frame_count += 1
 
                     if frame_count >= delay_frames:
+                        word = actions[np.argmax(res)]
                         print(actions[np.argmax(res)])
-                        sentence.append(actions[np.argmax(res)])
+                        sentence.append(word)
 
-                        if len(sentence) > 5:
-                            sentence = sentence[-5:]
+                        if word in word_counts:
+                            word_counts[word] += 1
+                        else:
+                            word_counts[word] = 1
+                        
+                        if frame_count == delay_frames:
+                            predictions = []
+                        
+                        if time.time()-cooldown_timer>=5:
+                            final_word = max(word_counts, key=word_counts.get)
+                            final.append(final_word)
+                            word_counts = {}
+                            cooldown_timer = time.time()
 
                         # Viz probabilities
                         image = prob_viz(res, actions, image, colors)
